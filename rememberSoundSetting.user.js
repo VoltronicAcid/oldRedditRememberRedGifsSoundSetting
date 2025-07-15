@@ -2,7 +2,7 @@
 // @name         Old Reddit - Remember RedGif Sound Setting
 // @description  Unmute content from redgifs.com on old.reddit.com
 // @author       VoltronicAcid
-// @version      0.0.1
+// @version      0.0.2
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=reddit.com
 // @match        https://www.redgifs.com/ifr/*
 // @match        https://www.redgifs.com/watch/*
@@ -11,34 +11,23 @@
 (() => {
     "use strict";
 
-    const enforceSoundSettings = (player) => {
-        const soundEnabled = JSON.parse(localStorage.getItem("enableSound"));
+    const enableSound = (player) => {
+        const soundOn = JSON.parse(localStorage.getItem("enableSound"));
+        const svg = player.querySelector("div.buttons > div.button:nth-child(1) > svg.soundOff");
 
-        const videoButtons = player.querySelectorAll("div.buttons > div.button");
-
-        if (videoButtons.length === 4 && soundEnabled) {
-            const [soundButton] = videoButtons;
-
-            const soundSVG = soundButton.querySelector("svg.soundOff");
-            soundSVG.dispatchEvent(new MouseEvent('click', {
+        if (soundOn && svg) {
+            svg.dispatchEvent(new MouseEvent("click", {
                 bubbles: true,
             }));
         }
     };
 
-    const watchSoundButtons = (player) => {
+    const observeVideoPlayer = (player) => {
         new MutationObserver((mutations) => {
             for (const { addedNodes } of mutations) {
                 if (addedNodes.length) {
                     const svg = addedNodes[0].firstElementChild;
-
-                    if (svg.classList.contains("soundOff")) {
-                        localStorage.setItem("enableSound", false);
-                    }
-
-                    if (svg.classList.contains("soundOn")) {
-                        localStorage.setItem("enableSound", true);
-                    }
+                    localStorage.setItem("enableSound", svg.className.baseVal === "soundOn");
                 }
             }
         }).observe(player, { subtree: true, childList: true, });
@@ -46,11 +35,11 @@
 
     new MutationObserver((mutations, observer) => {
         for (const { target, addedNodes } of mutations) {
-            const [node] = addedNodes;
+            if (target.className === "routeWrapper" && addedNodes[0]?.className === "embeddedPlayer") {
+                const [videoPlayer] = addedNodes;
 
-            if (target.className === "routeWrapper" && node?.className === "embeddedPlayer") {
-                enforceSoundSettings(node);
-                watchSoundButtons(node);
+                enableSound(videoPlayer);
+                observeVideoPlayer(videoPlayer);
 
                 observer.disconnect();
             }

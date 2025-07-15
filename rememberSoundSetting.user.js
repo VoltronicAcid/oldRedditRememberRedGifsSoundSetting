@@ -11,46 +11,48 @@
 (() => {
     "use strict";
 
-    const soundEnabled = JSON.parse(localStorage.getItem("enableSound"));
+    const enforceSoundSettings = (player) => {
+        const soundEnabled = JSON.parse(localStorage.getItem("enableSound"));
 
-    new MutationObserver((mutationsList, observer) => {
-        for (const record of mutationsList) {
-            const { target, addedNodes } = record;
+        const videoButtons = player.querySelectorAll("div.buttons > div.button");
 
-            if (target.classList.contains("routeWrapper")) {
+        if (videoButtons.length === 4 && soundEnabled) {
+            const [soundButton] = videoButtons;
+
+            const soundSVG = soundButton.querySelector("svg.soundOff");
+            soundSVG.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+            }));
+        }
+    };
+
+    const watchSoundButtons = (player) => {
+        new MutationObserver((mutations) => {
+            for (const { addedNodes } of mutations) {
                 if (addedNodes.length) {
-                    const [node] = addedNodes;
+                    const svg = addedNodes[0].firstElementChild;
 
-                    if (node.classList.contains("embeddedPlayer")) {
-                        const videoButtons = node.querySelectorAll("div.buttons > div.button");
+                    if (svg.classList.contains("soundOff")) {
+                        localStorage.setItem("enableSound", false);
+                    }
 
-                        if (videoButtons.length === 4 && soundEnabled) {
-                            const [soundButton] = videoButtons;
-
-                            const soundSVG = soundButton.querySelector("svg.soundOff");
-                            soundSVG.dispatchEvent(new MouseEvent('click', {
-                                bubbles: true,
-                            }));
-                        }
-
-                        new MutationObserver((list, obs) => {
-                            for (const { addedNodes, removedNodes } of list) {
-                                if (addedNodes.length) {
-                                    const addedNode = addedNodes[0].firstElementChild;
-
-                                    if (addedNode.classList.contains("soundOff")) {
-                                        localStorage.setItem("enableSound", false);
-                                    }
-                                    if (addedNode.classList.contains("soundOn")) {
-                                        localStorage.setItem("enableSound", true);
-                                    }
-                                }
-                            }
-                        }).observe(node, { subtree: true, childList: true, })
-
-                        observer.disconnect();
+                    if (svg.classList.contains("soundOn")) {
+                        localStorage.setItem("enableSound", true);
                     }
                 }
+            }
+        }).observe(player, { subtree: true, childList: true, });
+    };
+
+    new MutationObserver((mutations, observer) => {
+        for (const { target, addedNodes } of mutations) {
+            const [node] = addedNodes;
+
+            if (target.className === "routeWrapper" && node?.className === "embeddedPlayer") {
+                enforceSoundSettings(node);
+                watchSoundButtons(node);
+
+                observer.disconnect();
             }
         }
     }).observe(document.body, { subtree: true, childList: true, });
